@@ -4,6 +4,9 @@ import cookieparser from "cookie-parser";
 import cors from "cors";
 import connectDb from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
+import locationRoutes from "./routes/location.routes.js"
+import workerRoutes from "./routes/worker.routes.js"
+import attendanceRoutes from "./routes/attendance.routes.js"
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -24,6 +27,10 @@ app.use(
 
 // routes
 app.use("/api/auth",authRoutes)
+app.use("/api/location",locationRoutes)
+app.use("/api/worker", workerRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
 const port = process.env.PORT || 8080;
 
 app.listen(port, () => {
