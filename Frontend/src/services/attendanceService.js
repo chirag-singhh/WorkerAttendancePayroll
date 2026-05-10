@@ -11,7 +11,7 @@ export const attendanceService = {
   exportExcel: (params) => {
     // Build query string
     const query = new URLSearchParams(params).toString();
-    const url = `http://localhost:5000/api/attendance/export/excel${query ? `?${query}` : ''}`;
+    const url = `/attendance/export/excel${query ? `?${query}` : ''}`;
     window.open(url, '_blank');
   },
 };
