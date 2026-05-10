@@ -32,7 +32,7 @@ const workerSchema = new mongoose.Schema(
 
     memberId: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
       trim: true,
     },
@@ -45,6 +45,7 @@ const workerSchema = new mongoose.Schema(
     phone: {
       type: String,
       default: "",
+      required:false,
     },
 
     locationId: {

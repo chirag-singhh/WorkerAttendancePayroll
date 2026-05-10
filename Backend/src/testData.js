@@ -3,7 +3,7 @@ import axios from "axios";
 const BASE_URL = "http://localhost:5000/api";
 
 const token =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmUwN2Q1NmU4Yzc0YjBmNGQzODhkZSIsImlhdCI6MTc3ODMyMjc4MCwiZXhwIjoxNzc4OTI3NTgwfQ.XK6b2h9k018dNQpWxurGbtdsrPBgH1PEja4GFglmq_k";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMDA3NzNhZWMyNDNmMzdkN2YyNzFmMCIsImlhdCI6MTc3ODQxNTYxNCwiZXhwIjoxNzc5MDIwNDE0fQ.DNCX0g-4DyPqhNJ73jIJcJNolfGdfSwkklyN4x9z62U";
 
 const departments = [
   "Mistry",

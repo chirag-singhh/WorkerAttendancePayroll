@@ -304,6 +304,10 @@ export const getPayrollReport = async (
   }
 };
 
+
+
+
+
 // export const exportAttendanceExcel = async (
 //   req,
 //   res
@@ -314,52 +318,125 @@ export const getPayrollReport = async (
 //       .populate("workerId")
 //       .populate("locationId");
 
-//     const data = records.map((record) => ({
-//       Worker: record.workerId.name,
 
-//       Department:
-//         record.workerId.department,
+//     // =========================
+//     // GET ALL UNIQUE DATES
+//     // =========================
 
-//       MemberID:
-//         record.workerId.memberId,
+//     const allDatesSet = new Set();
 
-//       Location:
-//         record.locationId.name,
+//     records.forEach((record) => {
 
-//       TotalShift:
-//         record.totalShift,
+//       record.attendance.forEach((item) => {
 
-//       TotalAmount:
-//         record.totalAmount,
+//         const date = new Date(item.date)
+//           .toISOString()
+//           .split("T")[0];
 
-//       StartDate:
-//         record.startDate.toDateString(),
+//         allDatesSet.add(date);
 
-//       EndDate:
-//         record.endDate.toDateString(),
-//     }));
+//       });
+
+//     });
+
+//     const allDates = [...allDatesSet].sort();
 
 
-//     // Workbook
-//     const workbook = XLSX.utils.book_new();
+//     // =========================
+//     // CREATE EXCEL DATA
+//     // =========================
+
+//     const excelData = records.map((record) => {
+
+//       const row = {
+
+//         Worker: record.workerId.name,
+
+//         Department:
+//           record.workerId.department,
+
+//         MemberID:
+//           record.workerId.memberId,
+
+//         Location:
+//           record.locationId.name,
+
+//         Rate:
+//            record.workerId.rate,
+//       };
+
+
+//       // Add Date Columns
+//       allDates.forEach((date) => {
+
+//         row[date] = "-";
+
+//       });
+
+
+//       // Fill Shift Values
+//       record.attendance.forEach((item) => {
+
+//         const formattedDate =
+//           new Date(item.date)
+//             .toISOString()
+//             .split("T")[0];
+
+//         row[formattedDate] =
+//           item.shift;
+
+//       });
+
+
+//       // Totals
+//       row["Total Shift"] =
+//         record.totalShift;
+
+//       row["Total Amount"] =
+//         record.totalAmount;
+
+//       return row;
+
+//     });
+
+
+//     // =========================
+//     // CREATE WORKBOOK
+//     // =========================
+
+//     const workbook =
+//       XLSX.utils.book_new();
 
 //     const worksheet =
-//       XLSX.utils.json_to_sheet(data);
+//       XLSX.utils.json_to_sheet(
+//         excelData
+//       );
 
 //     XLSX.utils.book_append_sheet(
 //       workbook,
 //       worksheet,
-//       "Attendance"
+//       "Attendance Payroll"
 //     );
 
-//     const excelBuffer = XLSX.write(workbook, {
-//       type: "buffer",
-//       bookType: "xlsx",
-//     });
+
+//     // =========================
+//     // GENERATE BUFFER
+//     // =========================
+
+//     const excelBuffer =
+//       XLSX.write(workbook, {
+//         type: "buffer",
+//         bookType: "xlsx",
+//       });
+
+
+//     // =========================
+//     // RESPONSE
+//     // =========================
 
 //     res.setHeader(
 //       "Content-Disposition",
-//       "attachment; filename=attendance.xlsx"
+//       "attachment; filename=attendance-payroll.xlsx"
 //     );
 
 //     res.setHeader(
@@ -386,7 +463,29 @@ export const exportAttendanceExcel = async (
 ) => {
   try {
 
-    const records = await Attendance.find()
+    // =========================
+    // GET LOCATION ID
+    // =========================
+
+    const { locationId } = req.query;
+
+
+    // =========================
+    // FILTER QUERY
+    // =========================
+
+    const query = {};
+
+    if (locationId) {
+      query.locationId = locationId;
+    }
+
+
+    // =========================
+    // FETCH RECORDS
+    // =========================
+
+    const records = await Attendance.find(query)
       .populate("workerId")
       .populate("locationId");
 
@@ -422,23 +521,28 @@ export const exportAttendanceExcel = async (
 
       const row = {
 
-        Worker: record.workerId.name,
+        Worker:
+          record.workerId?.name || "",
 
         Department:
-          record.workerId.department,
+          record.workerId?.department || "",
 
         MemberID:
-          record.workerId.memberId,
+          record.workerId?.memberId || "",
 
         Location:
-          record.locationId.name,
+          record.locationId?.name || "",
 
         Rate:
-           record.workerId.rate,
+          record.workerId?.rate || 0,
+
       };
 
 
-      // Add Date Columns
+      // =========================
+      // ADD DATE COLUMNS
+      // =========================
+
       allDates.forEach((date) => {
 
         row[date] = "-";
@@ -446,7 +550,10 @@ export const exportAttendanceExcel = async (
       });
 
 
-      // Fill Shift Values
+      // =========================
+      // FILL SHIFT VALUES
+      // =========================
+
       record.attendance.forEach((item) => {
 
         const formattedDate =
@@ -460,12 +567,15 @@ export const exportAttendanceExcel = async (
       });
 
 
-      // Totals
+      // =========================
+      // TOTALS
+      // =========================
+
       row["Total Shift"] =
-        record.totalShift;
+        record.totalShift || 0;
 
       row["Total Amount"] =
-        record.totalAmount;
+        record.totalAmount || 0;
 
       return row;
 
@@ -492,6 +602,28 @@ export const exportAttendanceExcel = async (
 
 
     // =========================
+    // AUTO COLUMN WIDTH
+    // =========================
+
+    worksheet["!cols"] = [
+
+      { wch: 25 }, // Worker
+      { wch: 18 }, // Department
+      { wch: 15 }, // MemberID
+      { wch: 20 }, // Location
+      { wch: 10 }, // Rate
+
+      ...allDates.map(() => ({
+        wch: 12,
+      })),
+
+      { wch: 15 }, // Total Shift
+      { wch: 18 }, // Total Amount
+
+    ];
+
+
+    // =========================
     // GENERATE BUFFER
     // =========================
 
@@ -503,7 +635,7 @@ export const exportAttendanceExcel = async (
 
 
     // =========================
-    // RESPONSE
+    // RESPONSE HEADERS
     // =========================
 
     res.setHeader(
@@ -515,6 +647,11 @@ export const exportAttendanceExcel = async (
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
+
+
+    // =========================
+    // SEND FILE
+    // =========================
 
     res.send(excelBuffer);
 
