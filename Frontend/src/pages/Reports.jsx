@@ -11,9 +11,9 @@ import toast from 'react-hot-toast';
 export default function Reports() {
   const { activeLocation, locations } = useAuth();
   const [filterLocation, setFilterLocation] = useState(activeLocation?._id || '');
-  const { startDate, endDate } = getCurrentMonthRange();
-  const [reportStartDate, setReportStartDate] = useState(startDate);
-  const [reportEndDate, setReportEndDate] = useState(endDate);
+  const { startDate: defaultStart, endDate: defaultEnd } = getCurrentMonthRange();
+  const [reportStartDate, setReportStartDate] = useState(() => localStorage.getItem('rep_start') || defaultStart);
+  const [reportEndDate, setReportEndDate] = useState(() => localStorage.getItem('rep_end') || defaultEnd);
   
   const [monthlyData, setMonthlyData] = useState([]);
   const [grandTotals, setGrandTotals] = useState(null);
@@ -24,6 +24,8 @@ export default function Reports() {
   }, [activeLocation]);
 
   useEffect(() => {
+    localStorage.setItem('rep_start', reportStartDate);
+    localStorage.setItem('rep_end', reportEndDate);
     fetchReport();
   }, [filterLocation, reportStartDate, reportEndDate]);
 

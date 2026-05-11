@@ -114,8 +114,8 @@ export default function Attendance() {
   const defaultEnd = dayjs().format('YYYY-MM-DD');
 
   const [filterLocation, setFilterLocation] = useState(activeLocation?._id || '');
-  const [startDate, setStartDate] = useState(defaultStart);
-  const [endDate, setEndDate] = useState(defaultEnd);
+  const [startDate, setStartDate] = useState(() => localStorage.getItem('att_start') || defaultStart);
+  const [endDate, setEndDate] = useState(() => localStorage.getItem('att_end') || defaultEnd);
   const [workers, setWorkers] = useState([]);
   const [existingRecords, setExistingRecords] = useState([]);
   // grid: { [workerId]: { [date]: shift } }
@@ -129,6 +129,11 @@ export default function Attendance() {
   useEffect(() => {
     if (activeLocation) setFilterLocation(activeLocation._id);
   }, [activeLocation]);
+
+  useEffect(() => {
+    localStorage.setItem('att_start', startDate);
+    localStorage.setItem('att_end', endDate);
+  }, [startDate, endDate]);
 
   const loadData = useCallback(async () => {
     if (!startDate || !endDate || !filterLocation) return;
