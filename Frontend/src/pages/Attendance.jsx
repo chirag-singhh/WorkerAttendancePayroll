@@ -243,26 +243,61 @@ export default function Attendance() {
     }
   };
 
+  // const handleDeleteRecord = async (workerId) => {
+  //   const id = recordMap[workerId];
+  //   if (!id) { toast.error('No saved record to delete'); return; }
+  //   try {
+  //     await attendanceService.delete(id);
+  //     toast.success('Record deleted');
+  //     loadData();
+  //   } catch {
+  //     toast.error('Failed to delete record');
+  //   }
+  // };
   const handleDeleteRecord = async (workerId) => {
-    const id = recordMap[workerId];
-    if (!id) { toast.error('No saved record to delete'); return; }
-    try {
-      await attendanceService.delete(id);
-      toast.success('Record deleted');
-      loadData();
-    } catch {
-      toast.error('Failed to delete record');
-    }
-  };
+  try {
+    await workerService.delete(workerId);
 
-  const handleExport = () => {
-    attendanceService.exportExcel({
+    setWorkers(prev => prev.filter(w => w._id !== workerId));
+
+    setGrid(prev => {
+      const newGrid = { ...prev };
+      delete newGrid[workerId];
+      return newGrid;
+    });
+
+    setRecordMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[workerId];
+      return newMap;
+    });
+
+    toast.success('Worker deleted successfully');
+  } catch (err) {
+    toast.error('Failed to delete worker');
+  }
+};
+
+  // const handleExport = () => {
+  //   attendanceService.exportExcel({
+  //     startDate,
+  //     endDate,
+  //     ...(filterLocation ? { locationId: filterLocation } : {}),
+  //   });
+  // };
+const handleExport = async () => {
+  try {
+    const res = await attendanceService.exportExcel({
       startDate,
       endDate,
       ...(filterLocation ? { locationId: filterLocation } : {}),
     });
-  };
 
+    toast.success("Export started");
+  } catch (err) {
+    toast.error("Export failed");
+  }
+};
   const { totalShifts, totalAmount } = grandTotals();
 
   return (

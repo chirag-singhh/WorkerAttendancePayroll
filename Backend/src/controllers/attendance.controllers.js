@@ -304,6 +304,141 @@ export const getPayrollReport = async (
   }
 };
 
+export const exportAttendanceExcel = async (req, res) => {
+  try {
+    const { locationId } = req.query;
+
+    // =========================
+    // FILTER QUERY
+    // =========================
+    const query = {};
+    if (locationId) {
+      query.locationId = locationId;
+    }
+
+    // =========================
+    // FETCH RECORDS (ONLY ACTIVE WORKERS)
+    // =========================
+    const records = await Attendance.find(query)
+      .populate({
+        path: "workerId",
+        match: { active: { $ne: false } }, // ❗ exclude deleted/inactive workers
+      })
+      .populate("locationId");
+
+    // =========================
+    // REMOVE NULL WORKERS (IMPORTANT)
+    // =========================
+    const filteredRecords = records.filter(
+      (record) => record.workerId !== null
+    );
+
+    // =========================
+    // GET ALL UNIQUE DATES
+    // =========================
+    const allDatesSet = new Set();
+
+    filteredRecords.forEach((record) => {
+      record.attendance.forEach((item) => {
+        const date = new Date(item.date).toISOString().split("T")[0];
+        allDatesSet.add(date);
+      });
+    });
+
+    const allDates = [...allDatesSet].sort();
+
+    // =========================
+    // CREATE EXCEL DATA
+    // =========================
+    const excelData = filteredRecords.map((record) => {
+      const row = {
+        Worker: record.workerId?.name || "",
+        Department: record.workerId?.department || "",
+        MemberID: record.workerId?.memberId || "",
+        Location: record.locationId?.name || "",
+        Rate: record.workerId?.rate || 0,
+      };
+
+      // init date columns
+      allDates.forEach((date) => {
+        row[date] = "-";
+      });
+
+      // fill attendance
+      record.attendance.forEach((item) => {
+        const formattedDate = new Date(item.date)
+          .toISOString()
+          .split("T")[0];
+
+        row[formattedDate] = item.shift;
+      });
+
+      // totals
+      row["Total Shift"] = record.totalShift || 0;
+      row["Total Amount"] = record.totalAmount || 0;
+
+      return row;
+    });
+
+    // =========================
+    // CREATE WORKBOOK
+    // =========================
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Attendance Payroll"
+    );
+
+    // =========================
+    // AUTO COLUMN WIDTH
+    // =========================
+    worksheet["!cols"] = [
+      { wch: 25 }, // Worker
+      { wch: 18 }, // Department
+      { wch: 15 }, // MemberID
+      { wch: 20 }, // Location
+      { wch: 10 }, // Rate
+      ...allDates.map(() => ({ wch: 12 })),
+      { wch: 15 }, // Total Shift
+      { wch: 18 }, // Total Amount
+    ];
+
+    // =========================
+    // GENERATE FILE BUFFER
+    // =========================
+    const excelBuffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    // =========================
+    // RESPONSE HEADERS
+    // =========================
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=attendance-payroll.xlsx"
+    );
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // =========================
+    // SEND FILE
+    // =========================
+    res.send(excelBuffer);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+
 
 
 
@@ -314,7 +449,29 @@ export const getPayrollReport = async (
 // ) => {
 //   try {
 
-//     const records = await Attendance.find()
+//     // =========================
+//     // GET LOCATION ID
+//     // =========================
+
+//     const { locationId } = req.query;
+
+
+//     // =========================
+//     // FILTER QUERY
+//     // =========================
+
+//     const query = {};
+
+//     if (locationId) {
+//       query.locationId = locationId;
+//     }
+
+
+//     // =========================
+//     // FETCH RECORDS
+//     // =========================
+
+//     const records = await Attendance.find(query)
 //       .populate("workerId")
 //       .populate("locationId");
 
@@ -350,23 +507,28 @@ export const getPayrollReport = async (
 
 //       const row = {
 
-//         Worker: record.workerId.name,
+//         Worker:
+//           record.workerId?.name || "",
 
 //         Department:
-//           record.workerId.department,
+//           record.workerId?.department || "",
 
 //         MemberID:
-//           record.workerId.memberId,
+//           record.workerId?.memberId || "",
 
 //         Location:
-//           record.locationId.name,
+//           record.locationId?.name || "",
 
 //         Rate:
-//            record.workerId.rate,
+//           record.workerId?.rate || 0,
+
 //       };
 
 
-//       // Add Date Columns
+//       // =========================
+//       // ADD DATE COLUMNS
+//       // =========================
+
 //       allDates.forEach((date) => {
 
 //         row[date] = "-";
@@ -374,7 +536,10 @@ export const getPayrollReport = async (
 //       });
 
 
-//       // Fill Shift Values
+//       // =========================
+//       // FILL SHIFT VALUES
+//       // =========================
+
 //       record.attendance.forEach((item) => {
 
 //         const formattedDate =
@@ -388,12 +553,15 @@ export const getPayrollReport = async (
 //       });
 
 
-//       // Totals
+//       // =========================
+//       // TOTALS
+//       // =========================
+
 //       row["Total Shift"] =
-//         record.totalShift;
+//         record.totalShift || 0;
 
 //       row["Total Amount"] =
-//         record.totalAmount;
+//         record.totalAmount || 0;
 
 //       return row;
 
@@ -420,6 +588,28 @@ export const getPayrollReport = async (
 
 
 //     // =========================
+//     // AUTO COLUMN WIDTH
+//     // =========================
+
+//     worksheet["!cols"] = [
+
+//       { wch: 25 }, // Worker
+//       { wch: 18 }, // Department
+//       { wch: 15 }, // MemberID
+//       { wch: 20 }, // Location
+//       { wch: 10 }, // Rate
+
+//       ...allDates.map(() => ({
+//         wch: 12,
+//       })),
+
+//       { wch: 15 }, // Total Shift
+//       { wch: 18 }, // Total Amount
+
+//     ];
+
+
+//     // =========================
 //     // GENERATE BUFFER
 //     // =========================
 
@@ -431,7 +621,7 @@ export const getPayrollReport = async (
 
 
 //     // =========================
-//     // RESPONSE
+//     // RESPONSE HEADERS
 //     // =========================
 
 //     res.setHeader(
@@ -444,6 +634,11 @@ export const getPayrollReport = async (
 //       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 //     );
 
+
+//     // =========================
+//     // SEND FILE
+//     // =========================
+
 //     res.send(excelBuffer);
 
 //   } catch (error) {
@@ -454,212 +649,3 @@ export const getPayrollReport = async (
 
 //   }
 // };
-
-
-
-export const exportAttendanceExcel = async (
-  req,
-  res
-) => {
-  try {
-
-    // =========================
-    // GET LOCATION ID
-    // =========================
-
-    const { locationId } = req.query;
-
-
-    // =========================
-    // FILTER QUERY
-    // =========================
-
-    const query = {};
-
-    if (locationId) {
-      query.locationId = locationId;
-    }
-
-
-    // =========================
-    // FETCH RECORDS
-    // =========================
-
-    const records = await Attendance.find(query)
-      .populate("workerId")
-      .populate("locationId");
-
-
-    // =========================
-    // GET ALL UNIQUE DATES
-    // =========================
-
-    const allDatesSet = new Set();
-
-    records.forEach((record) => {
-
-      record.attendance.forEach((item) => {
-
-        const date = new Date(item.date)
-          .toISOString()
-          .split("T")[0];
-
-        allDatesSet.add(date);
-
-      });
-
-    });
-
-    const allDates = [...allDatesSet].sort();
-
-
-    // =========================
-    // CREATE EXCEL DATA
-    // =========================
-
-    const excelData = records.map((record) => {
-
-      const row = {
-
-        Worker:
-          record.workerId?.name || "",
-
-        Department:
-          record.workerId?.department || "",
-
-        MemberID:
-          record.workerId?.memberId || "",
-
-        Location:
-          record.locationId?.name || "",
-
-        Rate:
-          record.workerId?.rate || 0,
-
-      };
-
-
-      // =========================
-      // ADD DATE COLUMNS
-      // =========================
-
-      allDates.forEach((date) => {
-
-        row[date] = "-";
-
-      });
-
-
-      // =========================
-      // FILL SHIFT VALUES
-      // =========================
-
-      record.attendance.forEach((item) => {
-
-        const formattedDate =
-          new Date(item.date)
-            .toISOString()
-            .split("T")[0];
-
-        row[formattedDate] =
-          item.shift;
-
-      });
-
-
-      // =========================
-      // TOTALS
-      // =========================
-
-      row["Total Shift"] =
-        record.totalShift || 0;
-
-      row["Total Amount"] =
-        record.totalAmount || 0;
-
-      return row;
-
-    });
-
-
-    // =========================
-    // CREATE WORKBOOK
-    // =========================
-
-    const workbook =
-      XLSX.utils.book_new();
-
-    const worksheet =
-      XLSX.utils.json_to_sheet(
-        excelData
-      );
-
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Attendance Payroll"
-    );
-
-
-    // =========================
-    // AUTO COLUMN WIDTH
-    // =========================
-
-    worksheet["!cols"] = [
-
-      { wch: 25 }, // Worker
-      { wch: 18 }, // Department
-      { wch: 15 }, // MemberID
-      { wch: 20 }, // Location
-      { wch: 10 }, // Rate
-
-      ...allDates.map(() => ({
-        wch: 12,
-      })),
-
-      { wch: 15 }, // Total Shift
-      { wch: 18 }, // Total Amount
-
-    ];
-
-
-    // =========================
-    // GENERATE BUFFER
-    // =========================
-
-    const excelBuffer =
-      XLSX.write(workbook, {
-        type: "buffer",
-        bookType: "xlsx",
-      });
-
-
-    // =========================
-    // RESPONSE HEADERS
-    // =========================
-
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=attendance-payroll.xlsx"
-    );
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-
-
-    // =========================
-    // SEND FILE
-    // =========================
-
-    res.send(excelBuffer);
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: error.message,
-    });
-
-  }
-};
